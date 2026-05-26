@@ -1,95 +1,95 @@
 ;*******************************************************************************
-;* Einstieg in die effektive Nutzung von Kontrollstrukturen                    *
-;*                                                                             *
-;* GTP - Aufgabe A4                                                            *
-;*                                                                             *
+;* Einstieg in die effektive Nutzung von Kontrollstrukturen                   *
+;* *
+;* GTP                                                                         *
+;* Aufgabe A5                                                                  *
+;* *
 ;* Narek Avetisyan (Matrikel-Nr. 2844345)                                      *
 ;* Thore Zumpe (Matrikel-Nr. 2583766)                                          *
-;*                                                                             *
-;* Programm: Sieb des Eratosthenes 							                   *
+;* *
+;* Berechnung der Primzahlen 2 bis 1000                                        *
 ;*******************************************************************************
 
-;-------------------------------------------------------------------------------
-; DATENSEGMENT
-;-------------------------------------------------------------------------------
-                AREA MyData, DATA, align = 2
+                AREA MyData, DATA, READWRITE, ALIGN = 2
+Base
 
-; Konstanten definieren
-STARTWERT       EQU 2
-ENDWERT         EQU 1000
+; Konstante für die Anzahl der zu berechnenden Primzahlen:
+MaxPrimzahl     EQU 1000
 
-; Speicherbereich für das 'Sieb' (Array)
-; Da wir bei 0 starten und bis 1000 gehen, brauchen wir exakt 1001 Bytes.
-; Der Index im Feld entspricht direkt der Zahl selbst (Index i = Zahl i).
-SIEB            SPACE 1001
+; Feld ohne Schleife von Anfang an mit 0 und 1 deklariert:
+IstPrimzahlFeld
+                DCB   0, 0                 ; Index 0 und 1 initial auf 0 setzen
+                FILL  999, 1, 1            ; Indizes 2 bis 1000 (999 Bytes) initial auf 1 setzen
+
                 ALIGN
 
-; Speicherstelle für das Endergebnis Anzahl_Primzahlen (1 Word = 32-Bit)
-Anzahl_Primzahlen SPACE 4
-                ALIGN
-
-
-;-------------------------------------------------------------------------------
-; CODESEGMENT (Hauptprogramm und Teilfunktionen)
-;-------------------------------------------------------------------------------
+;*******************************************************************************
+;* Beginn des Programms                                                        *
+;*******************************************************************************
                 AREA |.text|, CODE, READONLY, ALIGN = 3
                 EXPORT main
                 EXTERN initITSboard
 
-;===============================================================================
-; HAUPTPROGRAMM (MAIN)
-;===============================================================================
 main            PROC
-                BL    initITSboard                 ; HW Initialisieren
+                bl    initITSboard                 ; HW Initialisieren
 
-                ; --- AUFRUF TEILFUNKTION SIEB ---
-                ; Führe den Sieb-Algorithmus aus, um alle Nicht-Primzahlen zu streichen
-                BL    sieb_funktion
+                ldr   r0, =IstPrimzahlFeld         ; Basisadresse in R0 laden
+                mov   r5, #0                       ; R5 fest auf 0 setzen (für Streichvorgang)
 
-                ; --- AUFRUF TEILFUNKTION ZAEHLEN ---
-                ; Zähle die Primzahlen im gesiebten Feld zusammen und speichere das Ergebnis
-                BL    zaehlen_funktion
+; --- Beginn des Siebens ---
 
-; Programmende
-forever         B     forever
+; ==============================================================================
+; ÄUSSERE SCHLEIFE (Prüfung bis i * i > 1000)
+; ==============================================================================
+for1
+                mov   r1, #2                       ; i = STARTWERT (2)
+until1
+                mul   r6, r1, r1                   ; R6 = i * i
+                cmp   r6, #MaxPrimzahl             ; Schleifenbedingung prüfen: i * i <= 1000
+                bls   do1                          ; DO: Wenn wahr (<=), in den Schleifenbody springen
+                b     enddo1                       ; Sonst: Äußere Schleife beenden
+
+do1
+                ; Prüfe, ob die aktuelle Zahl i eine Primzahl ist (noch nicht gestrichen)
+                ; Berechne Adresse: R0 + i
+                ; Lade Byte aus SIEB[i] nach R7
+                ldrb  r7, [r0, r1]                 
+if1
+                ; IF SIEB[i] == 1 THEN
+                cmp   r7, #1                       
+                beq   then1                        ; Wenn wahr (== 1) Springe in den THEN
+                b     endif1                       ; Wenn falsch (== 0) IF-Block überspringen
+then1
+                ; Starte das Streichen der Vielfachen beim Quadrat der Zahl (i*i)
+; ==============================================================================
+; INNERE SCHLEIFE (Streichen der Vielfachen)
+; ==============================================================================
+for2
+                mul   r4, r1, r1                   ; j = i * i
+until2
+                cmp   r4, #MaxPrimzahl             ; Schleifenbedingung prüfen: j <= 1000
+                bls   do2                          ; DO: Wenn wahr (<=), Vielfaches streichen
+                b     enddo2                       ; Sonst: Innere Schleife beenden
+
+do2
+                ; SIEB[j] = 0 (Markiere j als Nicht-Primzahl / streichen)
+                strb  r5, [r0, r4]                 ; Schreibt die 0 aus R5 an die Adresse R0 + j
+step2
+                ; j = j + i (Gehe zum nächsten Vielfachen)
+                add   r4, r4, r1
+                b     until2                       ; Rücksprung zur inneren Bedingungsprüfung
+enddo2
+
+endif1
+                ; END IF
+
+step1
+                ; i = i + 1 (Gehe zur nächsten Zahl: 3, 4, 5, ...)
+                add   r1, r1, #1
+                b     until1                       ; Rücksprung zur äußeren Bedingungsprüfung
+enddo1
+                ; END WHILE
+
+                bx    lr                           ; Rücksprung ins Hauptprogramm
                 ENDP
-
-
-;===============================================================================
-; TEILFUNKTION: SIEB
-;===============================================================================
-
-;===============================================================================
-; TEILFUNKTION: ZAEHLEN
-;===============================================================================
-zaehlen_funktion PROC
-                ; Registerbelegung:
-                ; R0 = Basisadresse von SIEB
-                ; R1 = Schleifenzähler i (STARTWERT bis ENDWERT)
-                ; R2 = Anzahl_Primzahlen (Zähler, startet bei 0)
-                ; R7 = Geladener Wert aus dem Feld (0 oder 1)
-                ; R8 = Basisadresse der Ergebnis-Speicherstelle (Anzahl_Primzahlen)
-
-                ; Anzahl_Primzahlen = 0
-
-                ; Durchlaufe das gesiebte Feld vom Startwert (2) bis zum Endwert (1000)
-                ; (Wir starten bei 2, da 0 und 1 per Definition eh keine Primzahlen sind)
-                ; FOR i FROM STARTWERT TO ENDWERT DO
-
-                    ; Prüfe den Eintrag im Feld, ob es eine Primzahl ist
-                    ; Berechne Adresse: R0 + i
-                    ; Lade Byte aus SIEB[i] in R7
-
-                    ; IF SIEB[i] == 1 THEN (Wenn der Eintrag auf "Ist Primzahl" steht)
-                    ;     Anzahl_Primzahlen = Anzahl_Primzahlen + 1 (Zähler hochzählen)
-                    ; END IF
-
-                ; END FOR
-
-                ; Speichere das Endergebnis (Anzahl_Primzahlen) an der dafür vorgesehenen Speicherstelle
-                ; Schreibe den Wert aus R2 in die Speicherstelle 'Anzahl_Primzahlen'
-
-                BX    LR                           ; Rücksprung ins Hauptprogramm
-                ENDP
-
                 END
