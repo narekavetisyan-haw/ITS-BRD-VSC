@@ -6,11 +6,11 @@
 ;* Narek Avetisyan (Matrikel-Nr. 2844345)                                      *
 ;* Thore Zumpe (Matrikel-Nr. 2583766)                                          *
 ;*                                                                             *
-;* Programm: Sieb des Eratosthenes (Feld startet bei Index 0)                  *
+;* Programm: Sieb des Eratosthenes 							                   *
 ;*******************************************************************************
 
 ;-------------------------------------------------------------------------------
-; DATENSEGMENT (Speicherbereich definieren)
+; DATENSEGMENT
 ;-------------------------------------------------------------------------------
                 AREA MyData, DATA, align = 2
 
@@ -58,59 +58,6 @@ forever         B     forever
 ;===============================================================================
 ; TEILFUNKTION: SIEB
 ;===============================================================================
-sieb_funktion   PROC
-                ; --- Initialisierung des Feldes ---
-                ; Registerbelegung:
-                ; R0 = Basisadresse von SIEB
-                ; R1 = Schleifenzähler i
-                ; R2 = Wert 1 (Markierung "Ist Primzahl")
-                ; R3 = Wert 0 (Markierung "Keine Primzahl")
-
-                ; FOR i FROM 0 TO ENDWERT DO
-                ;     SIEB[i] = 1 (Zunächst alle Einträge von 0 bis 1000 auf 1 setzen)
-                ; END FOR
-
-                ; --- Spezialfälle ausschließen (0 und 1 sind keine Primzahlen) ---
-                ; SIEB[0] = 0;
-                ; SIEB[1] = 0;
-
-
-                ; --- Beginn des Siebens ---
-                ; Registerbelegung:
-                ; R1 = i (startet bei STARTWERT = 2)
-                ; R4 = j (Vielfaches für die innere Schleife)
-                ; R5 = Wert 0 (Markierung "Nicht-Primzahl")
-                ; R6 = Hilfsregister für i * i
-
-                ; i = STARTWERT (2)
-                ; WHILE (i * i <= ENDWERT) DO (Streichen beginnt nur, solange i^2 <= 1000)
-
-                    ; Prüfe, ob die aktuelle Zahl i eine Primzahl ist (noch nicht gestrichen)
-                    ; Berechne Adresse: R0 + i (Kein Versatz nötig!)
-                    ; Lade Byte aus SIEB[i]
-
-                    ; IF SIEB[i] == 1 THEN (Wenn i noch als Primzahl markiert ist)
-
-                        ; Starte das Streichen der Vielfachen beim Quadrat der Zahl (i*i)
-                        ; j = i * i
-
-                        ; --- Schleife zum Streichen der Vielfachen von i ---
-                        ; WHILE (j <= ENDWERT) DO
-                        
-                            ; SIEB[j] = 0 (Markiere j als Nicht-Primzahl / streichen)
-                            ; j = j + i (Gehe zum nächsten Vielfachen)
-                            
-                        ; END WHILE
-
-                    ; END IF
-
-                    ; i = i + 1 (Gehe zur nächsten Zahl: 3, 4, 5, ...)
-
-                ; END WHILE
-
-                BX    LR                           ; Rücksprung ins Hauptprogramm
-                ENDP
-
 
 ;===============================================================================
 ; TEILFUNKTION: ZAEHLEN

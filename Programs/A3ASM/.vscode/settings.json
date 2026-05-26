@@ -1,0 +1,7 @@
+{
+    "debug.hideSlowPreLaunchWarning": true,
+    "debug.showInStatusBar": "never",
+    "clangd.arguments": [
+        "--compile-commands-dir=/Users/narekavetisyan/GT Repo/ITS-BRD-VSC/Programs/A3ASM/out/A3ASM/ITSboard_Assembly/Debug"
+    ]
+}

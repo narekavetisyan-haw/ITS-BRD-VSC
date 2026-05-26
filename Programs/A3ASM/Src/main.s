@@ -47,7 +47,7 @@ main            PROC
 ; Zugriff auf Variable
                 ldr   r0,=VariableA                 ; Anw-04
 ; VariableA 16 Bit in r1 laden 
-                ldrh  r1,[r0]                       ; Anw-05
+                    ldrh  r1,[r0]                       ; Anw-05
 ; VariableA und nachfolgende 16Bit in r2 laden
                 ldr   r2,[r0]                       ; Anw-06
 ; Inhalt von r2 speichern an der Adresse von VariableC
