@@ -17,10 +17,11 @@ Base
 MaxPrimzahl     EQU 1000
 
 ; Feld ohne Schleife von Anfang an mit 0 und 1 deklariert:
-IstPrimzahlFeld
+IstKandidat
                 DCB   0, 0                 ; Index 0 und 1 initial auf 0 setzen
                 FILL  999, 1, 1            ; Indizes 2 bis 1000 (999 Bytes) initial auf 1 setzen
-
+PrimzahlFeld
+                FILL  400, 0, 2 
                 ALIGN
 
 ;*******************************************************************************
@@ -33,7 +34,7 @@ IstPrimzahlFeld
 main            PROC
                 bl    initITSboard                 ; HW Initialisieren
 
-                ldr   r0, =IstPrimzahlFeld         ; Basisadresse in R0 laden
+                ldr   r0, =IstKandidat         ; Basisadresse in R0 laden
                 mov   r5, #0                       ; R5 fest auf 0 setzen (für Streichvorgang)
 
 ; --- Beginn des Siebens ---
@@ -44,8 +45,8 @@ main            PROC
 for1
                 mov   r1, #2                       ; i = STARTWERT (2)
 until1
-                mul   r6, r1, r1                   ; R6 = i * i
-                cmp   r6, #MaxPrimzahl             ; Schleifenbedingung prüfen: i * i <= 1000
+                mul   r4, r1, r1                   ; R4 = i * i
+                cmp   r4, #MaxPrimzahl             ; Schleifenbedingung prüfen: i * i <= 1000
                 bls   do1                          ; DO: Wenn wahr (<=), in den Schleifenbody springen
                 b     enddo1                       ; Sonst: Äußere Schleife beenden
 
@@ -65,7 +66,7 @@ then1
 ; INNERE SCHLEIFE (Streichen der Vielfachen)
 ; ==============================================================================
 for2
-                mul   r4, r1, r1                   ; j = i * i
+                mul   r4, r1, r1                   ; R4 = i * i
 until2
                 cmp   r4, #MaxPrimzahl             ; Schleifenbedingung prüfen: j <= 1000
                 bls   do2                          ; DO: Wenn wahr (<=), Vielfaches streichen
@@ -88,8 +89,46 @@ step1
                 add   r1, r1, #1
                 b     until1                       ; Rücksprung zur äußeren Bedingungsprüfung
 enddo1
-                ; END WHILE
+                ; END FOR
 
-                bx    lr                           ; Rücksprung ins Hauptprogramm
-                ENDP
-                END
+;-------------- Beginn des Abspeicherns --------------
+
+
+for3
+                ldr r6, =PrimzahlFeld               
+                mov r1, #2
+until3          
+                cmp r1, #MaxPrimzahl
+                bls do3
+                b   enddo3
+do3
+                ldrb  r7, [r0, r1]              ; Lade den Zustand aus dem Sieb (0 oder 1) nach R7
+if2
+                cmp r7, #1
+                beq then2
+                b   endif2
+then2
+                strh  r1, [r6], #2              ; Speichere die Zahl i als Halbwort
+
+endif2
+
+step3
+                add r1, r1, #1
+                b until3
+enddo3
+
+endfor3
+
+forever
+                b forever
+
+
+;                | Register | Initialisierung             | Verwendung im Programm                                   | Bedeutung                                             |
+;| -------- | --------------------------- | -------------------------------------------------------- | ----------------------------------------------------- |
+;| `R0`     | `ldr r0, =IstKandidat`      | Basisadresse des Arrays `IstKandidat`                    | Zeiger auf das Sieb-Feld                              |
+;| `R1`     | `mov r1, #2`                | Laufvariable der äußeren Schleife                        | Aktuelle Zahl `i`, die geprüft wird                   |
+;| `R4`     | keine feste Initialisierung | Zwischenspeicher für `i*i` bzw. aktuelles Vielfaches `j` | Berechnung und Schleifenvariable der inneren Schleife |
+;| `R5`     | `mov r5, #0`                | Konstanter Wert `0` zum Streichen                        | Wert zum Markieren von Nicht-Primzahlen               |
+;| `R7`     | keine feste Initialisierung | `ldrb r7, [r0, r1]`                                      | Geladener Inhalt von `IstKandidat[i]` zur Prüfung     |
+
+END
