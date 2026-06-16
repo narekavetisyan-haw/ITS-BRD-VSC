@@ -32,6 +32,7 @@ PrimzahlFeld
                 EXTERN initITSboard
 
 main            PROC
+
                 bl    initITSboard                 ; HW Initialisieren
 
                 ldr   r0, =IstKandidat         ; Basisadresse in R0 laden
@@ -95,25 +96,25 @@ enddo1
 
 
 for3
-                ldr r6, =PrimzahlFeld               
-                mov r1, #2
+                ldr r6, =PrimzahlFeld               ; Die Adresse, wo die Primzahlen gespeichert werden, auf den Register laden
+                mov r1, #2                          ; erster Index
 until3          
-                cmp r1, #MaxPrimzahl
+                cmp r1, #MaxPrimzahl                ; IF (r1 =< MaxPrimzahl) = gehe zu do3, sonst zu enddo3
                 bls do3
                 b   enddo3
 do3
                 ldrb  r7, [r0, r1]              ; Lade den Zustand aus dem Sieb (0 oder 1) nach R7
 if2
-                cmp r7, #1
-                beq then2
-                b   endif2
+                cmp r7, #1                         ; IF (IstKadidat[i] == 1 (Primzahl))
+                beq then2                          ; gehe zu then2
+                b   endif2                         ; sonst endif
 then2
                 strh  r1, [r6], #2              ; Speichere die Zahl i als Halbwort
 
 endif2
 
 step3
-                add r1, r1, #1
+                add r1, r1, #1                  ; i++
                 b until3
 enddo3
 
