@@ -58,7 +58,6 @@ MY_TEXT				DCB		"Hold down different buttons from S0 to S7 and watch D8 to D15."
 MY_TEXT_TIMER		DCB		"00:00.00", 0
 
 state_run_stamp		DCD		0
-state_hold_stamp	DCD		0
 ;********************************************
 ; Code section, aligned on 8-byte boundery
 ;********************************************
@@ -97,75 +96,44 @@ main	PROC
 		BL  	lcdPrintS
 
 superloop
-		; read buttons	
-		LDR		R0,=GPIO_F_PIN
-		ldrh	R0,[R0]
-		and		R0,#0xFF   ; set bit 31 to 8 of R0 to 0 ; bit 7 to 0 do not change
-		; bit i for R0 is 1 <=> button S<i> not pressed (for 0 <= i <= 7)
-		; bit i for R0 is 0 <=> button S<i>     pressed (for 0 <= i <= 7)
-		
-		LDR		r1, =state
-		LDRB	r1, [r1]
 
-		CMP		r0, #0xDF	; if (Taster == s5)
-		BNE		nots5		; if (Taster != s5) dann überspringen
-		
-		CMP		r1, #STATE_INIT
-		BEQ		nots5
-		BL		INIT		; spring zum INIT
-	
-nots5
-
-		CMP		r0, #0x7F	; if (Taster == s7)
-		BNE		nots7
-		
-		CMP		r1, #STATE_RUN	
-		BEQ		nots7
-
-		CMP		R1, #STATE_INIT
-		BNE		nicht_von_init
-		;*********************************
-		;	Zeitstempel von Run sichern
-		;*********************************
-		LDR		R4, =state_run_stamp
-		LDR		R3, =TIMER
-		LDR		R3, [R3]
-		STR		R3, [R4]
-nicht_von_init
-		BL		RUNNING		; springe zum RUNNING
-
-nots7
-
-		CMP		r0, #0xBF	;if (Taster == s6)
-		BNE		nots6
-
-		CMP		r1, #STATE_RUN
-		BNE		nots6
-
-		BL		HOLD
-
-nots6
-
-		CMP		r1, #STATE_RUN
-		BNE		not_running
+		BL		check_state
 
 
 
-		LDR 	R1,=TIMER	; Systemzeit laden
-		LDR 	R0,[R1]
-
-		; Aktuelle Zeit im RUNNING-Zeitstempel sichern
-		LDR		R1, =state_run_stamp
-		LDR		R1, [R1]
-		SUB		R0, R1
-
-		BL checktimer
-
-not_running
 
 		BAL		superloop				; End of superloop
 
-checktimer PROC
+
+check_state	PROC
+
+		PUSH {LR}
+
+		;Zustandsvariable laden
+		LDR		R1, =state
+		LDRB		R1, [R1]
+
+		CMP		R1, #STATE_INIT
+		BNE		nicht_init
+		BL		INIT
+		B		check_ende
+nicht_init
+		CMP		R1, #STATE_RUN
+		BNE		nicht_run
+		BL		RUNNING
+		B		check_ende
+nicht_run
+		CMP		R1, #STATE_HOLD
+		BNE		nicht_hold
+		BL		HOLD
+
+nicht_hold
+check_ende
+		POP {LR}
+		BX LR
+		ENDP
+
+check_timer PROC
 
 		PUSH {R3,R4,R5,R6,R7,R8,LR}
 
@@ -241,77 +209,188 @@ checktimer PROC
 displaytime PROC
 
 		PUSH {LR}
-		MOV 	R0,#1
-		MOV 	R1,#1
+		MOV 	R0,	#1
+		MOV 	R1,	#1
 		BL 		lcdGotoXY
 
-		LDR R0,=MY_TEXT_TIMER
-		BL lcdPrintS
+		LDR 	R0,	=MY_TEXT_TIMER
+		BL 		lcdPrintS
 		
 
 		POP {LR}
 		BX		LR
 		ENDP
 
-INIT	PROC
+entry_init	PROC
+		PUSH{LR}
 
-		PUSH {LR}
+		LDR 	R1,	=state
+		MOV 	R0,	#STATE_INIT
+		STRB 	R0,	[R1]
 
-		LDR		R1, =state
-		MOV R0, #STATE_INIT
-		strb	R0, [R1]
+		MOV		R0, #0
+		BL		check_timer
 
 		MOV 	R0, #0XFF
 		; switch LEDs off (button s<i> not pressed : LED D<Ó+8> switched off (for 0 <= i <= 7))
 		LDR		R1,=GPIO_D_CLR
 		str		R0,[R1]
 
+		POP{LR}
 
-		MOV		R0, #0
-		BL		checktimer
+		BX	LR
+		ENDP
+
+INIT	PROC
+
+		PUSH {LR}
+
+		; read buttons	
+		LDR		R0,=GPIO_F_PIN
+		ldrh	R0,[R0]
+		and		R0,#0xFF   ; set bit 31 to 8 of R0 to 0 ; bit 7 to 0 do not change
+
+		ORR		R0, #0x7F
+		CMP		r0, #0xFF	; if (Taster != s7)
+		BEQ		init_bleiben
+
+		BL		entry_run
+
+init_bleiben
 
 		POP {LR}
 
 		BX LR
 		ENDP
 
-RUNNING	PROC
+entry_run	PROC
+
 		PUSH {LR}
 
+
 		LDR		R1, =state
-		MOV R0, #STATE_RUN
+		LDRB	R1, [R1]
+
+		CMP		R1, #STATE_INIT
+		BNE		nicht_von_init
+
+		;*********************************
+		;	Zeitstempel von Run sichern
+		;*********************************
+		LDR		R4, =state_run_stamp
+		LDR		R3, =TIMER
+		LDR		R3, [R3]
+		STR		R3, [R4]
+
+nicht_von_init
+
+		LDR		R1, =state
+		MOV     R0, #STATE_RUN
 		strb	R0, [R1]
 
-			; switch LEDs off (button s<i> not pressed : LED D<Ó+8> switched off (for 0 <= i <= 7))
-
+		; switch LEDs off (button s<i> not pressed : LED D<Ó+8> switched off (for 0 <= i <= 7))
 		MOV R0,#0xFF
 		LDR R1,=GPIO_D_CLR
 		STR R0,[R1]
 			
-			; switch LEDs on (button s<i>      pressed : LED D<Ó+8> switched on  (for 0 <= i <= 7))
-
+		; switch LEDs on (button s<i>      pressed : LED D<Ó+8> switched on  (for 0 <= i <= 7))
 		MOV 	R0,#LED_D8
 		LDR 	R1,=GPIO_D_SET
 		STR 	R0,[R1]
 
 		POP {LR}
+		BX	LR
+		ENDP
+
+RUNNING	PROC
+		PUSH {LR}
+
+		; read buttons	
+		LDR		R0,=GPIO_F_PIN
+		ldrh	R0,[R0]
+		and		R0,#0xFF   ; set bit 31 to 8 of R0 to 0 ; bit 7 to 0 do not change
+
+		;ob S5 + S6 gedrückt sind
+		ORR		R0, #0x9F
+		CMP		r0, #0xFF	; if (Taster != S5 und S6)
+		BEQ		keine_Taster_run
+
+		;ob S6 gedrückt ist
+		CMP		R0, #0xBF
+		BNE		not_s6_run
+		BL		entry_hold
+not_s6_run		
+		;ob S5 gedrückt ist
+		CMP		R0, #0xDF
+		BNE		keine_Taster_run
+		BL		entry_init
+		B		ende_run
+keine_Taster_run
+
+
+		LDR 	R1,=TIMER	; Systemzeit laden
+		LDR 	R0,[R1]
+
+		; Aktuelle Zeit im RUNNING-Zeitstempel geladen
+		LDR		R1, =state_run_stamp
+		LDR		R1, [R1]
+		SUB		R0, R1
+		
+		BL		check_timer
+ende_run
+		POP {LR}
 		BX LR
+		ENDP
+
+
+entry_hold	PROC
+
+		PUSH{LR}
+
+		LDR		R1, =state
+		MOV 	R0, #STATE_HOLD
+		strb	R0, [R1]
+
+		MOV 	R0,	#0xFF
+		LDR 	R1,	=GPIO_D_CLR
+		STR 	R0,	[R1]
+
+		MOV 	R0,	#(LED_D8+LED_D9)
+		LDR 	R1,	=GPIO_D_SET
+		STR 	R0,	[R1]
+
+		POP {LR}
+		BX 	LR
 		ENDP
 
 HOLD	PROC
 		PUSH {LR}
 
-		LDR		R1, =state
-		MOV R0, #STATE_HOLD
-		strb	R0, [R1]
+		; read buttons	
+		LDR		R0,=GPIO_F_PIN
+		ldrh	R0,[R0]
+		and		R0,#0xFF   ; set bit 31 to 8 of R0 to 0 ; bit 7 to 0 do not change
 
-		MOV R0,#0xFF
-		LDR R1,=GPIO_D_CLR
-		STR R0,[R1]
 
-		MOV R0,#(LED_D8+LED_D9)
-		LDR R1,=GPIO_D_SET
-		STR R0,[R1]	
+		;ob S5 + S7 gedrückt sind
+		ORR		R0, #0x5F
+		CMP		r0, #0xFF	; if (Taster != S5 und S6)
+		BEQ		keine_Taster_hold
+
+		;ob S5 gedrückt ist
+		CMP		R0, #0xDF
+		BNE		not_s5_hold
+		BL		entry_init
+
+not_s5_hold
+
+		;ob S7 gedrückt ist
+		CMP		R0, #0x7F
+		BNE		not_s7_hold
+		BL	entry_run	
+
+not_s7_hold
+keine_Taster_hold
 
 		POP {LR}
 		BX LR
