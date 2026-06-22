@@ -56,6 +56,7 @@ DEFAULT_BRIGHTNESS	DCW     800
 MY_TEXT				DCB		"Hold down different buttons from S0 to S7 and watch D8 to D15.", 0
 
 MY_TEXT_TIMER		DCB		"00:00.00", 0
+MY_TEXT_TIMER_DISP	DCB		"00:00.00", 0
 
 state_run_stamp		DCD		0
 ;********************************************
@@ -129,8 +130,11 @@ nicht_run
 
 nicht_hold
 check_ende
+
 		POP {LR}
+
 		BX LR
+
 		ENDP
 
 check_timer PROC
@@ -209,17 +213,48 @@ check_timer PROC
 displaytime PROC
 
 		PUSH {LR}
-		MOV 	R0,	#1
-		MOV 	R1,	#1
+
+for1
+        mov     R5,#0
+until1
+        CMP     R5,#8
+        BEQ     enddo1
+do1
+ 
+if1
+        LDR     R3,=MY_TEXT_TIMER		;aktuelles Zeichen
+        LDRB    R3,[R3,R5]
+        LDR     R4,=MY_TEXT_TIMER_DISP	;bereits angezeigtes Zeichen
+        LDRB    R4,[R4,R5]
+        CMP     R3,R4
+        BNE     then1
+        B       endif1
+then1
+        LDR		R3, =MY_TEXT_TIMER
+		LDRB	R3, [R3, R5]
+		LDR     R4,=MY_TEXT_TIMER_DISP	;neues Zeichen merken
+        STRB    R3,[R4,R5]
+		MOV 	R0,#1
+		MOV 	R1,#1
+		ADD		R0,R5
 		BL 		lcdGotoXY
 
-		LDR 	R0,	=MY_TEXT_TIMER
-		BL 		lcdPrintS
-		
+		LDR		R0, =MY_TEXT_TIMER_DISP
+		LDRB	R0, [R0, R5]
+        BL lcdPrintC
+endif1
+ 
+step1
+        ADD     R5,#1
+        B       until1
+enddo1
 
 		POP {LR}
+
 		BX		LR
+		
 		ENDP
+
 
 entry_init	PROC
 		PUSH{LR}
@@ -325,6 +360,7 @@ not_s6_run
 		BNE		keine_Taster_run
 		BL		entry_init
 		B		ende_run
+
 keine_Taster_run
 
 
