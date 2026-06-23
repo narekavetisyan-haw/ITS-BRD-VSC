@@ -4,7 +4,8 @@
 ;* Version            : V1.0
 ;* Date               : 11.05.2022
 ;* Description        : Rahmen zur Loesung von GTP Woche 7-9 (Stoppuhr).
-;
+;* Narek Avetisyan 	  ; (Matrikel-Nr. 2844345)                                      
+;* Thore Zumpe 	      ; (Matrikel-Nr. 2583766)                                          
 ;*******************************************************************************
 
 ; Define address of selected GPIO and Timer registers
@@ -105,6 +106,8 @@ superloop
 
 		BAL		superloop				; End of superloop
 
+		ENDP
+
 
 check_state	PROC
 
@@ -114,6 +117,9 @@ check_state	PROC
 		LDR		R1, =state
 		LDRB		R1, [R1]
 
+		; Timer liefert 10-µs-Ticks.
+		; Umrechnung auf Hundertstelsekunden:
+		; 1000 Ticks = 0,01 s
 		CMP		R1, #STATE_INIT
 		BNE		nicht_init
 		BL		INIT
@@ -141,13 +147,18 @@ check_timer PROC
 
 		PUSH {R3,R4,R5,R6,R7,R8,LR}
 
+		; Timer liefert 10-µs-Ticks.
+		; Umrechnung auf Hundertstelsekunden:
+		; 1000 Ticks = 0,01 s
 		MOV 	R2,#1000
 		UDIV 	R0,R0,R2
 
+		; 6000 Hundertstel = 60 Sekunden = 1 Minute
 		MOV 	R2, #6000
 		UDIV	R3, R0, R2		;R3 = Minuten
 		MLS		R0, R3, R2, R0
 		
+		; 100 Hundertstel = 1 Sekunde
 		MOV		R2, #100
 		UDIV	R4, R0, R2		;R4 = Sekunden
 		MLS		R5, R4, R2, R0	;R5 = Hundertstel
@@ -226,6 +237,11 @@ if1
         LDRB    R3,[R3,R5]
         LDR     R4,=MY_TEXT_TIMER_DISP	;bereits angezeigtes Zeichen
         LDRB    R4,[R4,R5]
+
+		; Zeichen vergleichen:
+		; Nur wenn sich das Zeichen geändert hat,
+		; wird das TFT aktualisiert.
+
         CMP     R3,R4
         BNE     then1
         B       endif1
@@ -237,22 +253,26 @@ then1
 		MOV 	R0,#1
 		MOV 	R1,#1
 		ADD		R0,R5
+
+		; Cursor auf die Zeichenposition setzen
 		BL 		lcdGotoXY
 
 		LDR		R0, =MY_TEXT_TIMER_DISP
 		LDRB	R0, [R0, R5]
+
+		; Nur das geänderte Zeichen ausgeben
         BL lcdPrintC
 endif1
  
 step1
-        ADD     R5,#1
+        ADD     R5,#1			
         B       until1
 enddo1
 
 		POP {LR}
 
 		BX		LR
-		
+
 		ENDP
 
 
@@ -305,6 +325,10 @@ entry_run	PROC
 
 		LDR		R1, =state
 		LDRB	R1, [R1]
+
+		; Nur beim Start aus INIT wird ein neuer
+		; Startzeitstempel gespeichert.
+		; Beim Wechsel HOLD -> RUN läuft die Zeit weiter.
 
 		CMP		R1, #STATE_INIT
 		BNE		nicht_von_init
@@ -370,6 +394,8 @@ keine_Taster_run
 		; Aktuelle Zeit im RUNNING-Zeitstempel geladen
 		LDR		R1, =state_run_stamp
 		LDR		R1, [R1]
+
+		; Vergangene Zeit seit dem Start berechnen
 		SUB		R0, R1
 		
 		BL		check_timer
